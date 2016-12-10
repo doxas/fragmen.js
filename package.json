@@ -1,0 +1,11 @@
+{
+  "name": "fragmen.js",
+  "version": "0.0.1",
+  "description": "very simple shader importer",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/doxas/fragmen.js.git"
+  },
+  "author": "doxas",
+  "license": "MIT"
+}
