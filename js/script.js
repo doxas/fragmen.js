@@ -1,5 +1,18 @@
+/* @example
+ * let frag = new Fragmen.render(<your shader source>);
+ */
 
 class Fragmen {
+    /**
+     * constructor of fragmen.js
+     * @param {object} option - options
+     * <ul>
+     *   <li> target {HTMLElement} insert canvas to
+     *   <li> eventTarget {HTMLElement} event target element or window
+     *   <li> mouse {boolean} mouse event enable
+     *   <li> resize {boolean} resize event enable
+     * </ul>
+     */
     constructor(option){
         this.target = null;
         this.eventTarget = null;
@@ -7,29 +20,39 @@ class Fragmen {
         this.gl = null;
         this.source = '';
         this.resize = false;
+        this.width = 0;
+        this.height = 0;
         this.mouse = false;
         this.mousePosition = null;
         this.run = false;
         this.startTime = 0;
         this.nowTime = 0;
-        this.state = {
-            program: null,
-            uniLocation: null,
-            attLocation: null,
-            VS: '',
-            FS: '',
-            postProgram: null,
-            postUniLocation: null,
-            postAttLocation: null,
-            postVS: '',
-            postFS: '',
-            fFront: null,
-            fBack: null,
-            fTemp: null,
-        };
+        this.program = null;
+        this.uniLocation = null;
+        this.attLocation = null;
+        this.VS = '';
+        this.FS = '';
+        this.postProgram = null;
+        this.postUniLocation = null;
+        this.postAttLocation = null;
+        this.postVS = '';
+        this.postFS = '';
+        this.fFront = null;
+        this.fBack = null;
+        this.fTemp = null;
+        // bind method
+        this.render = this.render.bind(this);
+        this.rect = this.rect.bind(this);
+        this.reset = this.reset.bind(this);
+        this.draw = this.draw.bind(this);
+        // initial call
         this.init(option);
     }
 
+    /**
+     * initialize fragmen.js
+     * @param {object} option - options
+     */
     init(option){
         // option check
         if(option === null || option === undefined){return;}
@@ -49,6 +72,7 @@ class Fragmen {
             console.log('webgl unsupported');
             return;
         }
+        this.gl.getExtension('OES_standard_derivatives');
         // check event
         if(option.hasOwnProperty('eventTarget') && option.eventTarget !== null && option.eventTarget !== undefined){
             this.eventTarget = option.eventTarget;
@@ -56,153 +80,173 @@ class Fragmen {
         if(option.hasOwnProperty('mouse') && option.mouse === true){
             this.eventTarget.addEventListener('mousemove', this.mouseMove, false);
         }
-        // fix size
+        if(option.hasOwnProperty('resize') && option.resize === true){
+            window.addEventListener('window', this.rect, false);
+        }
+        // render initial
+        this.VS = 'attribute vec3 p;void main(){gl_Position=vec4(p,1.);}';
+        this.postVS = `
+attribute vec3 position;
+varying   vec2 vTexCoord;
+void main(){
+    vTexCoord   = (position + 1.0).xy / 2.0;
+    gl_Position = vec4(position, 1.0);
+}`;
+        this.postFS = `
+precision mediump float;
+uniform sampler2D texture;
+varying vec2      vTexCoord;
+void main(){
+    gl_FragColor = texture2D(texture, vTexCoord);
+}`;
+        this.postProgram = this.gl.createProgram();
+        this.createShader(this.postProgram, 0, this.postVS);
+        this.createShader(this.postProgram, 1, this.postFS);
+        this.gl.linkProgram(this.postProgram);
+        this.postUniLocation = {};
+        this.postUniLocation.texture = this.gl.getUniformLocation(this.postProgram, 'texture');
+        this.postAttLocation = this.gl.getAttribLocation(this.postProgram, 'position');
+        this.fFront = this.fBack = this.fTemp = null;
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.gl.createBuffer());
+        this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array([-1,1,0,-1,-1,0,1,1,0,1,-1,0]), this.gl.STATIC_DRAW);
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, null);
+        this.gl.disable(this.gl.DEPTH_TEST);
+        this.gl.disable(this.gl.CULL_FACE);
+        this.gl.disable(this.gl.BLEND);
+        this.gl.clearColor(0.0, 0.0, 0.0, 1.0);
+    }
+
+    /**
+     * rendering hub
+     * @param {string} source - fragment shader source
+     * @return {object} instance
+     */
+    render(source){
+        if(source === null || source === undefined || source === ''){
+            if(this.FS === ''){return;}
+        }else{
+            this.FS = source;
+        }
+        if(this.run){
+            this.run = false;
+            setTimeout(this.reset, 500);
+        }else{
+            this.reset();
+        }
+        return this;
+    }
+
+    /**
+     * set rect
+     */
+    rect(){
         const bound = this.target.getBoundingClientRect();
-        this.canvas.width = bound.width;
-        this.canvas.height = bound.height;
-        this.canvas.style.margin = '0';
+        this.width = bound.width;
+        this.height = bound.height;
+        this.canvas.width = this.width;
+        this.canvas.height = this.height;
+        this.resetBuffer(this.fFront);
+        this.resetBuffer(this.fBack);
+        this.resetBuffer(this.fTemp);
+        this.fFront = this.createFramebuffer(this.width, this.height);
+        this.fBack = this.createFramebuffer(this.width, this.height);
     }
 
-    render(){
-        var err = null;
-        run = false;
-        timeout = null;
-        if(shaderSource == null || shaderSource === ''){
-            console.log('shader source not found');
+    /**
+     * reset renderer
+     */
+    reset(){
+        this.rect();
+        this.program = this.gl.createProgram();
+        if(!this.createShader(this.program, 0, this.VS) || !this.createShader(this.program, 1, this.FS)){return;}
+        this.gl.linkProgram(this.program);
+        if(!this.gl.getProgramParameter(this.program, this.gl.LINK_STATUS)){
+            console.warn(this.gl.getProgramInfoLog(this.program));
             return;
         }
-        fBufferWidth = window.innerWidth;
-        fBufferHeight = window.innerHeight;
-        if(!gl){
-            gl = canvas.getContext('webgl');
-            this.gl.getExtension('OES_standard_derivatives');
-            tPrg = this.gl.createProgram();
-            vSource = bid('vs').textContent;
-            fSource = bid('fs').textContent;
-            shader(tPrg, 0, vSource); shader(tPrg, 1, fSource);
-            this.gl.linkProgram(tPrg);
-            tUni = {};
-            tUni.texture = this.gl.getUniformLocation(tPrg, 'texture');
-            bAttLocation = this.gl.getAttribLocation(tPrg, 'position');
-            fFront = fBack = fTemp = null;
-            this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.gl.createBuffer());
-            this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array([-1,1,0,-1,-1,0,1,1,0,1,-1,0]), this.gl.STATIC_DRAW);
-            this.gl.disable(this.gl.DEPTH_TEST);
-            this.gl.disable(this.gl.CULL_FACE);
-            this.gl.disable(this.gl.BLEND);
-            this.gl.clearColor(0, 0, 0, 1);
-        }else{
-            this.gl.deleteProgram(prg);
-            prg = null;
-        }
-        resetBuffer(fFront);
-        resetBuffer(fBack);
-        resetBuffer(fTemp);
-        canvas.width = fBufferWidth;
-        canvas.height = fBufferHeight;
-        fFront = create_framebuffer(fBufferWidth, fBufferHeight);
-        fBack  = create_framebuffer(fBufferWidth, fBufferHeight);
-        prg = this.gl.createProgram();
-        vSource = 'attribute vec3 p;void main(){gl_Position=vec4(p,1.);}';
-        fSource = shaderSource;
-        if(shader(prg, 0, vSource) && shader(prg, 1, fSource)){
-            this.gl.linkProgram(prg);
-        }else{
-            return;
-        }
-        err = this.gl.getProgramParameter(prg, this.gl.LINK_STATUS);
-        if(!err){alert(this.gl.getProgramInfoLog(prg)); return;}
-
-        this.gl.useProgram(prg);
-        uni = {};
-        uni.mouse = this.gl.getUniformLocation(prg, 'mouse');
-        uni.time = this.gl.getUniformLocation(prg, 'time');
-        uni.resolution = this.gl.getUniformLocation(prg, 'resolution');
-        uni.sampler = this.gl.getUniformLocation(prg, 'buckbuffer');
-        aAttLocation = this.gl.getAttribLocation(prg, 'p');
-
-        this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
-        this.gl.clear(this.gl.COLOR_BUFFER_BIT);
-        this.gl.viewport(0, 0, fBufferWidth, fBufferHeight);
-
-        timeout = setTimeout(function(){
-            console.log('render: ', shaderSource);
-            run = true;
-            mousePosition = [0.0, 0.0];
-            startTime = Date.now();
-            render();
-        }, 2000);
+        this.gl.useProgram(this.program);
+        this.uniLocation = {};
+        this.uniLocation.mouse = this.gl.getUniformLocation(this.program, 'mouse');
+        this.uniLocation.time = this.gl.getUniformLocation(this.program, 'time');
+        this.uniLocation.resolution = this.gl.getUniformLocation(this.program, 'resolution');
+        this.uniLocation.sampler = this.gl.getUniformLocation(this.program, 'buckbuffer');
+        this.attLocation = this.gl.getAttribLocation(this.program, 'p');
+        this.run = true;
+        this.mousePosition = [0.0, 0.0];
+        this.startTime = Date.now();
+        this.draw();
     }
 
+    /**
+     * rendering
+     */
     draw(){
-        if(!run){return;}
-        requestAnimationFrame(render);
-        nowTime = (Date.now() - startTime) * 0.001;
-        this.gl.useProgram(prg);
-        this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, fFront.f);
+        if(!this.run){return;}
+        requestAnimationFrame(this.render);
+        this.nowTime = (Date.now() - this.startTime) * 0.001;
+        this.gl.useProgram(this.program);
+        this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.fFront.f);
         this.gl.activeTexture(this.gl.TEXTURE0);
-        this.gl.bindTexture(this.gl.TEXTURE_2D, fBack.t);
-        this.gl.enableVertexAttribArray(aAttLocation);
-        this.gl.vertexAttribPointer(aAttLocation, 3, this.gl.FLOAT, false, 0, 0);
+        this.gl.bindTexture(this.gl.TEXTURE_2D, this.fBack.t);
+        this.gl.enableVertexAttribArray(this.attLocation);
+        this.gl.vertexAttribPointer(this.attLocation, 3, this.gl.FLOAT, false, 0, 0);
         this.gl.clear(this.gl.COLOR_BUFFER_BIT);
-        this.gl.uniform2fv(uni.mouse, mousePosition);
-        this.gl.uniform1f(uni.time, nowTime);
-        this.gl.uniform2fv(uni.resolution, [fBufferWidth, fBufferHeight]);
-        this.gl.uniform1i(uni.sampler, 0);
+        this.gl.uniform2fv(this.uniLocation.mouse, this.mousePosition);
+        this.gl.uniform1f(this.uniLocation.time, this.nowTime);
+        this.gl.uniform2fv(this.uniLocation.resolution, [this.width, this.height]);
+        this.gl.uniform1i(this.uniLocation.sampler, 0);
         this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
 
-        this.gl.useProgram(tPrg);
+        this.gl.useProgram(this.postProgram);
         this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
         this.gl.activeTexture(this.gl.TEXTURE1);
-        this.gl.bindTexture(this.gl.TEXTURE_2D, fFront.t);
-        this.gl.enableVertexAttribArray(bAttLocation);
-        this.gl.vertexAttribPointer(bAttLocation, 3, this.gl.FLOAT, false, 0, 0);
+        this.gl.bindTexture(this.gl.TEXTURE_2D, this.fFront.t);
+        this.gl.enableVertexAttribArray(this.postAttLocation);
+        this.gl.vertexAttribPointer(this.postAttLocation, 3, this.gl.FLOAT, false, 0, 0);
         this.gl.clear(this.gl.COLOR_BUFFER_BIT);
-        this.gl.uniform1i(tUni.texture, 1);
+        this.gl.uniform1i(this.postUniLocation.texture, 1);
         this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
 
         this.gl.flush();
-        fTemp = fFront;
-        fFront = fBack;
-        fBack = fTemp;
+        this.fTemp = this.fFront;
+        this.fFront = this.fBack;
+        this.fBack = this.fTemp;
     }
 
-    shader(p, i, j){
-        if(!gl){return;}
-        k = this.gl.createShader(this.gl.VERTEX_SHADER - i);
+    /**
+     * create and compile shader
+     * @param {WebGLProgram} p - target program object
+     * @param {number} i - 0 or 1, 0 is vertex shader compile mode
+     * @param {string} j - shader source
+     * @return {boolean} succeeded or not
+     */
+    createShader(p, i, j){
+        if(!this.gl){return;}
+        const k = this.gl.createShader(this.gl.VERTEX_SHADER - i);
         this.gl.shaderSource(k, j);
         this.gl.compileShader(k);
         if(!this.gl.getShaderParameter(k, this.gl.COMPILE_STATUS)){
-            alert(this.gl.getShaderInfoLog(k));
+            console.warn(this.gl.getShaderInfoLog(k));
             return false;
         }
         this.gl.attachShader(p, k);
-        var message = this.gl.getShaderInfoLog(k);
-        if(message !== ''){console.info('message: ' + message);}
+        const l = this.gl.getShaderInfoLog(k);
+        if(l !== ''){console.info('shader info: ' + l);}
         return true;
     }
 
-    resetBuffer(obj){
-        if(!gl || !obj){return;}
-        if(obj.hasOwnProperty('f') && obj.f != null && this.gl.isFramebuffer(obj.f)){
-            this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
-            this.gl.deleteFramebuffer(obj.f);
-            obj.f = null;
-        }
-        if(obj.hasOwnProperty('d') && obj.d != null && this.gl.isRenderbuffer(obj.d)){
-            this.gl.bindRenderbuffer(this.gl.RENDERBUFFER, null);
-            this.gl.deleteRenderbuffer(obj.d);
-            obj.d = null;
-        }
-        if(obj.hasOwnProperty('t') && obj.t != null && this.gl.isTexture(obj.t)){
-            this.gl.bindTexture(this.gl.TEXTURE_2D, null);
-            this.gl.deleteTexture(obj.t);
-            obj.t = null;
-        }
-        obj = null;
-    }
-
-    create_framebuffer(width, height){
+    /**
+     * create framebuffer
+     * @param {number} width - set to framebuffer width
+     * @param {number} height - set to framebuffer height
+     * @return {object} custom object
+     * <ul>
+     *   <li> f {WebGLFramebuffer}
+     *   <li> d {WebGLRenderbuffer}
+     *   <li> t {WebGLTexture}
+     * </ul>
+     */
+    createFramebuffer(width, height){
         const frameBuffer = this.gl.createFramebuffer();
         this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, frameBuffer);
         const depthRenderBuffer = this.gl.createRenderbuffer();
@@ -223,6 +267,33 @@ class Fragmen {
         return {f: frameBuffer, d: depthRenderBuffer, t: fTexture};
     }
 
+    /**
+     * framebuffer reset
+     * @param {object} obj - custom object(this.createFramebuffer return value)
+     */
+    resetBuffer(obj){
+        if(!gl || !obj){return;}
+        if(obj.hasOwnProperty('f') && obj.f != null && this.gl.isFramebuffer(obj.f)){
+            this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
+            this.gl.deleteFramebuffer(obj.f);
+            obj.f = null;
+        }
+        if(obj.hasOwnProperty('d') && obj.d != null && this.gl.isRenderbuffer(obj.d)){
+            this.gl.bindRenderbuffer(this.gl.RENDERBUFFER, null);
+            this.gl.deleteRenderbuffer(obj.d);
+            obj.d = null;
+        }
+        if(obj.hasOwnProperty('t') && obj.t != null && this.gl.isTexture(obj.t)){
+            this.gl.bindTexture(this.gl.TEXTURE_2D, null);
+            this.gl.deleteTexture(obj.t);
+            obj.t = null;
+        }
+        obj = null;
+    }
+
+    /**
+     * mouse event
+     */
     mouseMove(eve){
         const bound, x, y, w, h;
         if(this.eventTarget === window){
@@ -237,6 +308,9 @@ class Fragmen {
         this.mousePosition = [x / w, 1.0 - y / h];
     }
 
+    /**
+     * key event
+     */
     keyDown(eve){
         if(this.gl === null){return;}
         this.run = (eve.keyCode !== 27);
