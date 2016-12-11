@@ -7,10 +7,11 @@ class Fragmen {
      * constructor of fragmen.js
      * @param {object} option - options
      * <ul>
-     *   <li> target {HTMLElement} insert canvas to
-     *   <li> eventTarget {HTMLElement} event target element or window
-     *   <li> mouse {boolean} mouse event enable
-     *   <li> resize {boolean} resize event enable
+     *   <li> {HTMLElement} target - insert canvas to
+     *   <li> {HTMLElement} [eventTarget=target] - event target element or window
+     *   <li> {boolean} [mouse=false] - mouse event enable
+     *   <li> {boolean} [escape=false] - keydown event enable
+     *   <li> {boolean} [resize=false] - resize event enable
      * </ul>
      */
     constructor(option){
@@ -24,6 +25,7 @@ class Fragmen {
         this.height = 0;
         this.mouse = false;
         this.mousePosition = null;
+        this.escape = false;
         this.run = false;
         this.startTime = 0;
         this.nowTime = 0;
@@ -45,6 +47,8 @@ class Fragmen {
         this.rect = this.rect.bind(this);
         this.reset = this.reset.bind(this);
         this.draw = this.draw.bind(this);
+        this.mouseMove = this.mouseMove.bind(this);
+        this.keyDown = this.keyDown.bind(this);
         // initial call
         this.init(option);
     }
@@ -80,8 +84,13 @@ class Fragmen {
         if(option.hasOwnProperty('mouse') && option.mouse === true){
             this.eventTarget.addEventListener('mousemove', this.mouseMove, false);
         }
+        if(option.hasOwnProperty('escape') && option.escape === true){
+            this.escape = true;
+            window.addEventListener('keydown', this.keyDown, false);
+        }
         if(option.hasOwnProperty('resize') && option.resize === true){
-            window.addEventListener('window', this.rect, false);
+            this.resize = true;
+            window.addEventListener('resize', this.rect, false);
         }
         // render initial
         this.VS = 'attribute vec3 p;void main(){gl_Position=vec4(p,1.);}';
@@ -109,7 +118,6 @@ void main(){
         this.fFront = this.fBack = this.fTemp = null;
         this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.gl.createBuffer());
         this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array([-1,1,0,-1,-1,0,1,1,0,1,-1,0]), this.gl.STATIC_DRAW);
-        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, null);
         this.gl.disable(this.gl.DEPTH_TEST);
         this.gl.disable(this.gl.CULL_FACE);
         this.gl.disable(this.gl.BLEND);
@@ -150,6 +158,7 @@ void main(){
         this.resetBuffer(this.fTemp);
         this.fFront = this.createFramebuffer(this.width, this.height);
         this.fBack = this.createFramebuffer(this.width, this.height);
+        this.gl.viewport(0, 0, this.width, this.height);
     }
 
     /**
@@ -182,7 +191,7 @@ void main(){
      */
     draw(){
         if(!this.run){return;}
-        requestAnimationFrame(this.render);
+        requestAnimationFrame(this.draw);
         this.nowTime = (Date.now() - this.startTime) * 0.001;
         this.gl.useProgram(this.program);
         this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.fFront.f);
@@ -272,7 +281,7 @@ void main(){
      * @param {object} obj - custom object(this.createFramebuffer return value)
      */
     resetBuffer(obj){
-        if(!gl || !obj){return;}
+        if(!this.gl || !obj){return;}
         if(obj.hasOwnProperty('f') && obj.f != null && this.gl.isFramebuffer(obj.f)){
             this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
             this.gl.deleteFramebuffer(obj.f);
@@ -295,7 +304,7 @@ void main(){
      * mouse event
      */
     mouseMove(eve){
-        const bound, x, y, w, h;
+        let bound, x, y, w, h;
         if(this.eventTarget === window){
             x = eve.clientX; y = eve.clientY;
             w = window.innerWidth; h = window.innerHeight;

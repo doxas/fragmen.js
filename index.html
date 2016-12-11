@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+        <script type="text/javascript" src="js/script.js"></script>
+        <script>
+            window.addEventListener('load', ()=>{
+                const fragmentShaderSource = `
+precision mediump float;
+uniform vec2  resolution;
+uniform vec2  mouse;
+uniform float time;
+uniform sampler2D backbuffer;
+
+const vec3 pinkColor = vec3(1.0, 0.1, 0.5);
+const vec3 blueColor = vec3(0.1, 0.3, 0.9);
+
+float waveNeon(vec2 p, float power, float width, float height, float speed){
+    float x = cos(abs(p.x * width));
+    float y = power / abs(p.y + sin(p.x * 25.0 + time * speed) * height);
+    return max(x * y, 0.0);
+}
+
+void main(){
+    vec2 p = (gl_FragCoord.xy * 2.0 - resolution) / min(resolution.x, resolution.y);
+    vec2 m = mouse * 2.0 - 1.0;
+    float t = min(time, 2.0) * 0.5;
+    p = p * abs(atan(p.y / p.x));
+    float a = waveNeon(p, 0.2, 5.0, 0.25 + abs(m.x), 0.75);
+    float b = waveNeon(p, 0.5, 2.5, 0.5  + abs(m.y), 0.25);
+    gl_FragColor = vec4((pinkColor * a + blueColor * b) * t, 1.0);
+}`;
+                const backscreen = document.getElementById('insert_target');
+                const backscreenOption = {
+                    target: backscreen,
+                    eventTarget: window,
+                    mouse: true,
+                    escape: true,
+                    resize: true
+                };
+                const content = document.getElementById('insert_target_content');
+                const contentOption = {
+                    target: content,
+                    eventTarget: null,
+                    mouse: true,
+                    escape: false,
+                    resize: true
+                };
+                let frag = new Fragmen(backscreenOption).render(fragmentShaderSource);
+                let frag_content = new Fragmen(contentOption).render(fragmentShaderSource);
+            }, false);
+        </script>
+        <style>
+            html, body {
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                padding: 0;
+            }
+            #insert_target {
+                width: 100%;
+                height: 100%;
+                position: absolute;
+                top: 0px;
+                left: 0px;
+            }
+            #insert_target_content {
+                border: 2px solid white;
+                width: 50%;
+                height: 300px;
+            }
+            #content {
+                background-color: rgba(64, 64, 64, 0.5);
+                color: silver;
+                margin: 0px;
+                padding: 50px;
+                position: absolute;
+            }
+        </style>
+        <title>test html</title>
+    </head>
+    <body>
+        <div id="insert_target"></div>
+        <div id="content">
+            <h1>content</h1>
+            <p>content text. content text. content text. content text. content text.</p>
+            <p>content text. content text. content text. content text. content text.</p>
+            <div id="insert_target_content"></div>
+            <p>content text. content text. content text. content text. content text.</p>
+            <p>content text. content text. content text. content text. content text.</p>
+        </div>
+    </body>
+</html>
+
+
+
