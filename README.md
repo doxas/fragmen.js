@@ -4,7 +4,7 @@ very simple fragment shader importer.
 
 ## get started
 
-```JavaScript:example
+```javascript:example
 window.addEventListener('DOMContentLoaded', ()=>{
     const source = 'your fragment shader source (compatible with glslsandbox)';
     const target = document.getElementById('target_element');
