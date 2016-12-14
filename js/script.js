@@ -175,10 +175,10 @@ void main(){
         }
         this.gl.useProgram(this.program);
         this.uniLocation = {};
+        this.uniLocation.resolution = this.gl.getUniformLocation(this.program, 'resolution');
         this.uniLocation.mouse = this.gl.getUniformLocation(this.program, 'mouse');
         this.uniLocation.time = this.gl.getUniformLocation(this.program, 'time');
-        this.uniLocation.resolution = this.gl.getUniformLocation(this.program, 'resolution');
-        this.uniLocation.sampler = this.gl.getUniformLocation(this.program, 'buckbuffer');
+        this.uniLocation.sampler = this.gl.getUniformLocation(this.program, 'backbuffer');
         this.attLocation = this.gl.getAttribLocation(this.program, 'p');
         this.run = true;
         this.mousePosition = [0.0, 0.0];

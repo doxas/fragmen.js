@@ -36,16 +36,16 @@ void main(){
                     target: backscreen,
                     eventTarget: window,
                     mouse: true,
-                    escape: true,
-                    resize: true
+                    resize: true,
+                    escape: true
                 };
                 const content = document.getElementById('insert_target_content');
                 const contentOption = {
                     target: content,
                     eventTarget: null,
                     mouse: true,
-                    escape: false,
-                    resize: true
+                    resize: true,
+                    escape: false
                 };
                 let frag = new Fragmen(backscreenOption).render(fragmentShaderSource);
                 let frag_content = new Fragmen(contentOption).render(fragmentShaderSource);

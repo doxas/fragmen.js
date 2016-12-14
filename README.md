@@ -1,6 +1,6 @@
 # fragmen.js
 
-very simple shader importer.
+very simple fragment shader importer.
 
 ## get started
 
@@ -12,21 +12,49 @@ window.addEventListener('load', ()=>{
         target: target,
         eventTarget: window,
         mouse: true,
-        escape: true,
-        resize: true
+        resize: true,
+        escape: true
     };
     const frag = new Fragmen(option).render(source);
 }, false);
 ```
 
-| name   | type                   |                                   |
-|--------|------------------------|-----------------------------------|
-| mouse  | boolean(default=false) | mouse event enable flag           |
-| escape | boolean(default=false) | stop animation bind to escape key |
-| resize | boolean(default=false) | resize event enable flag          |
+## options
 
-easy!
+| name        | type                   |                                          |
+|-------------|------------------------|------------------------------------------|
+| target      | insert target          | HTML Element                             |
+| eventTarget | target of mouse event  | HTML Element or window                   |
+| mouse       | boolean(default=false) | mouse event enable flag                  |
+| resize      | boolean(default=false) | resize event enable flag                 |
+| escape      | boolean(default=false) | bind an animation stop to the escape key |
 
-enjoy!
+## method
 
+### Fragmen.render({string} source);
+
+fragment shader source code. (compatible with glslsandbox)
+
+## uniforms
+
+### uniform vec2 resolution;
+
+canvas resolution.
+
+### uniform vec2 mouse;
+
+mouse cursor coordinate. (range 0.0 to 1.0)
+
+### uniform float time;
+
+since Fragmen.render called.
+
+### uniform sampler2D backbuffer;
+
+previous scene.
+
+
+## License
+
+This software is released under the MIT License.
 
