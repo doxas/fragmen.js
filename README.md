@@ -19,12 +19,14 @@ window.addEventListener('DOMContentLoaded', ()=>{
 }, false);
 ```
 
+easy!
+
 ## options
 
 | name        | type                   |                                          |
 |-------------|------------------------|------------------------------------------|
-| target      | insert target          | HTML Element                             |
-| eventTarget | target of mouse event  | HTML Element or window                   |
+| target      | HTMLElement            | insert target                            |
+| eventTarget | HTMLElement or window  | target of mouse event                    |
 | mouse       | boolean(default=false) | mouse event enable flag                  |
 | resize      | boolean(default=false) | resize event enable flag                 |
 | escape      | boolean(default=false) | bind an animation stop to the escape key |
