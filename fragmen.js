@@ -1,6 +1,3 @@
-/* @example
- * let frag = new Fragmen.render(<your shader source>);
- */
 
 class Fragmen {
     /**
