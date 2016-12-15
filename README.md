@@ -4,6 +4,8 @@ very simple fragment shader importer.
 
 ![](fragmen.jpg)
 
+[fragmen.js DEMO](https://doxas.org/work/fragmen.js/)
+
 ## get started
 
 ```javascript
