@@ -1,5 +1,5 @@
 
-class Fragmen {
+export default class Fragmen {
     /**
      * constructor of fragmen.js
      * @param {object} option - options
